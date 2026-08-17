@@ -111,6 +111,35 @@ describe("SettingsManager", () => {
 		});
 	});
 
+	describe("integration settings", () => {
+		it("stores one integration namespace without replacing Pi settings or sibling integrations", async () => {
+			const settingsPath = join(agentDir, "settings.json");
+			writeFileSync(
+				settingsPath,
+				JSON.stringify({
+					theme: "dark",
+					integrations: {
+						existing: { enabled: true },
+					},
+				}),
+			);
+
+			const manager = SettingsManager.create(projectDir, agentDir);
+			manager.setIntegrationSettings("commandOs", {
+				chatEndpoints: { platform: { modelId: "test-model" } },
+			});
+			await manager.flush();
+
+			const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
+			expect(savedSettings.theme).toBe("dark");
+			expect(savedSettings.integrations.existing).toEqual({ enabled: true });
+			expect(savedSettings.integrations.commandOs).toEqual({
+				chatEndpoints: { platform: { modelId: "test-model" } },
+			});
+			expect(manager.getIntegrationSettings("commandOs")).toEqual(savedSettings.integrations.commandOs);
+		});
+	});
+
 	describe("packages migration", () => {
 		it("should keep local-only extensions in extensions array", () => {
 			const settingsPath = join(agentDir, "settings.json");

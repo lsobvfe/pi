@@ -66,6 +66,8 @@ export interface WarningSettings {
 	anthropicExtraUsage?: boolean; // default: true
 }
 
+export type IntegrationSettings = Record<string, unknown>;
+
 export type DefaultProjectTrust = "ask" | "always" | "never";
 
 export type TransportSetting = Transport;
@@ -130,6 +132,7 @@ export interface Settings {
 	showHardwareCursor?: boolean; // Show terminal cursor while still positioning it for IME
 	markdown?: MarkdownSettings;
 	warnings?: WarningSettings;
+	integrations?: Record<string, IntegrationSettings>;
 	sessionDir?: string; // Custom session storage directory (same format as --session-dir CLI flag)
 	httpProxy?: string; // Proxy URL applied as HTTP_PROXY and HTTPS_PROXY for Pi-managed HTTP clients
 	httpIdleTimeoutMs?: number; // HTTP header/body idle timeout in milliseconds; 0 disables it
@@ -1287,4 +1290,28 @@ export class SettingsManager {
 		this.markModified("warnings");
 		this.save();
 	}
+
+	getIntegrationSettings(namespace: string): IntegrationSettings {
+		const value = this.settings.integrations?.[assertIntegrationNamespace(namespace)];
+		return isMergeableObject(value) ? structuredClone(value) : {};
+	}
+
+	setIntegrationSettings(namespace: string, settings: IntegrationSettings): void {
+		const normalizedNamespace = assertIntegrationNamespace(namespace);
+		if (!isMergeableObject(settings)) {
+			throw new Error("Integration settings must be an object");
+		}
+		this.globalSettings.integrations ??= {};
+		this.globalSettings.integrations[normalizedNamespace] = structuredClone(settings);
+		this.markModified("integrations", normalizedNamespace);
+		this.save();
+	}
+}
+
+function assertIntegrationNamespace(namespace: string): string {
+	const normalized = namespace.trim();
+	if (!/^[a-z][a-zA-Z0-9]*$/.test(normalized)) {
+		throw new Error(`Invalid integration settings namespace: ${namespace}`);
+	}
+	return normalized;
 }

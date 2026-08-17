@@ -248,6 +248,10 @@ export interface PromptOptions {
 	source?: InputSource;
 	/** Internal hook used by RPC mode to observe prompt preflight acceptance or rejection. */
 	preflightResult?: (success: boolean) => void;
+	/** Structured non-user messages injected into this turn's model context. */
+	contextMessages?: AgentMessage[];
+	/** Optional system prompt override scoped to this turn. */
+	systemPrompt?: string;
 }
 
 /** Result from cycleModel() */
@@ -1212,6 +1216,10 @@ export class AgentSession {
 			// Build messages array (custom message if any, then user message)
 			messages = [];
 
+			if (options?.contextMessages?.length) {
+				messages.push(...options.contextMessages);
+			}
+
 			// Add user message
 			const userContent: (TextContent | ImageContent)[] = [{ type: "text", text: expandedText }];
 			if (currentImages) {
@@ -1251,7 +1259,10 @@ export class AgentSession {
 				}
 			}
 			// Apply extension-modified system prompt, or reset to base
-			if (result?.systemPrompt !== undefined) {
+			if (options?.systemPrompt !== undefined) {
+				this._systemPromptOverride = options.systemPrompt;
+				this.agent.state.systemPrompt = options.systemPrompt;
+			} else if (result?.systemPrompt !== undefined) {
 				this._systemPromptOverride = result.systemPrompt;
 				this.agent.state.systemPrompt = result.systemPrompt;
 			} else {

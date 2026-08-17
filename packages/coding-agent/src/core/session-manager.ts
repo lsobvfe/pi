@@ -185,6 +185,8 @@ export interface SessionInfo {
 	messageCount: number;
 	firstMessage: string;
 	allMessagesText: string;
+	/** Latest data for each custom entry type, collected during the list scan. */
+	customData?: Record<string, unknown>;
 }
 
 export type ReadonlySessionManager = Pick<
@@ -693,6 +695,7 @@ async function buildSessionInfo(filePath: string): Promise<SessionInfo | null> {
 		const allMessages: string[] = [];
 		let name: string | undefined;
 		let lastActivityTime: number | undefined;
+		const customData: Record<string, unknown> = {};
 
 		const rl = createInterface({
 			input: createReadStream(filePath, { encoding: "utf8" }),
@@ -712,6 +715,10 @@ async function buildSessionInfo(filePath: string): Promise<SessionInfo | null> {
 			// Extract session name (use latest, including explicit clears)
 			if (entry.type === "session_info") {
 				name = entry.name?.trim() || undefined;
+			}
+
+			if (entry.type === "custom") {
+				customData[entry.customType] = entry.data;
 			}
 
 			if (entry.type !== "message") continue;
@@ -758,6 +765,7 @@ async function buildSessionInfo(filePath: string): Promise<SessionInfo | null> {
 			messageCount,
 			firstMessage: firstMessage || "(no messages)",
 			allMessagesText: allMessages.join(" "),
+			customData,
 		};
 	} catch {
 		return null;
@@ -1012,6 +1020,20 @@ export class SessionManager {
 		return this.sessionFile;
 	}
 
+	/** Persist the current session immediately, including sessions without an assistant message. */
+	flush(): void {
+		if (!this.persist || !this.sessionFile || this.flushed) return;
+		const fd = openSync(this.sessionFile, "wx");
+		try {
+			for (const entry of this.fileEntries) {
+				writeFileSync(fd, `${JSON.stringify(entry)}\n`);
+			}
+		} finally {
+			closeSync(fd);
+		}
+		this.flushed = true;
+	}
+
 	_persist(entry: SessionEntry): void {
 		if (!this.persist || !this.sessionFile) return;
 
@@ -1027,15 +1049,7 @@ export class SessionManager {
 		}
 
 		if (!this.flushed) {
-			const fd = openSync(this.sessionFile, "wx");
-			try {
-				for (const e of this.fileEntries) {
-					writeFileSync(fd, `${JSON.stringify(e)}\n`);
-				}
-			} finally {
-				closeSync(fd);
-			}
-			this.flushed = true;
+			this.flush();
 		} else {
 			appendFileSync(this.sessionFile, `${JSON.stringify(entry)}\n`);
 		}

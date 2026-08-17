@@ -254,6 +254,7 @@ export {
 	type DefaultProjectTrust,
 	type FullscreenExitOutput,
 	type ImageSettings,
+	type IntegrationSettings,
 	type PackageSource,
 	type RetrySettings,
 	SettingsManager,

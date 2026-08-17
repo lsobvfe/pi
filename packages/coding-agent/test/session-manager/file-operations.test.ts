@@ -1,5 +1,15 @@
 import { constants as bufferConstants } from "buffer";
-import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "fs";
+import {
+	appendFileSync,
+	closeSync,
+	existsSync,
+	mkdirSync,
+	openSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+	writeSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -280,6 +290,21 @@ describe("SessionManager custom flat session directory", () => {
 		}
 		return sessionFile;
 	}
+
+	it("can explicitly persist a session before the first assistant message", () => {
+		const session = SessionManager.create(projectA, tempDir);
+		session.appendCustomEntry("platform.metadata", { extensionId: "platform" });
+		const sessionFile = session.getSessionFile();
+		if (!sessionFile) throw new Error("Expected persisted session file");
+
+		expect(existsSync(sessionFile)).toBe(false);
+		session.flush();
+		expect(loadEntriesFromFile(sessionFile)).toHaveLength(2);
+
+		session.appendCustomEntry("platform.metadata", { ready: true });
+		session.flush();
+		expect(loadEntriesFromFile(sessionFile)).toHaveLength(3);
+	});
 
 	it("scopes current-folder APIs by cwd while listing all flat sessions", async () => {
 		const sessionA = createPersistedSession(projectA, "from A");
