@@ -681,8 +681,9 @@ function createClient(
 		dangerouslyAllowBrowser: true,
 		fetch,
 		// OpenAI-compatible gateways may reject the OpenAI SDK identity headers.
-		// Null values remove the SDK defaults while preserving provider headers.
+		// Null values remove SDK and runtime identity defaults after header merging.
 		defaultHeaders: {
+			...headers,
 			"User-Agent": null,
 			"X-Stainless-Lang": null,
 			"X-Stainless-Package-Version": null,
@@ -692,7 +693,6 @@ function createClient(
 			"X-Stainless-Runtime-Version": null,
 			"X-Stainless-Retry-Count": null,
 			"X-Stainless-Timeout": null,
-			...headers,
 		},
 	});
 }

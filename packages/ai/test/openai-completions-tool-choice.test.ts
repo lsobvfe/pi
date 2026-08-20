@@ -117,7 +117,10 @@ describe("openai-completions tool_choice", () => {
 
 	it("removes OpenAI SDK identity headers from compatible provider requests", async () => {
 		await streamSimple(
-			localOpenAICompletionsModel,
+			{
+				...localOpenAICompletionsModel,
+				headers: { "User-Agent": "pi-coding-agent", "X-Custom-Provider": "keep" },
+			},
 			{
 				messages: [{ role: "user", content: "Hi", timestamp: Date.now() }],
 			},
@@ -135,6 +138,7 @@ describe("openai-completions tool_choice", () => {
 			"X-Stainless-Runtime-Version": null,
 			"X-Stainless-Retry-Count": null,
 			"X-Stainless-Timeout": null,
+			"X-Custom-Provider": "keep",
 		});
 	});
 
