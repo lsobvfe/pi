@@ -680,7 +680,20 @@ function createClient(
 		baseURL: model.baseUrl,
 		dangerouslyAllowBrowser: true,
 		fetch,
-		defaultHeaders: headers,
+		// OpenAI-compatible gateways may reject the OpenAI SDK identity headers.
+		// Null values remove the SDK defaults while preserving provider headers.
+		defaultHeaders: {
+			"User-Agent": null,
+			"X-Stainless-Lang": null,
+			"X-Stainless-Package-Version": null,
+			"X-Stainless-OS": null,
+			"X-Stainless-Arch": null,
+			"X-Stainless-Runtime": null,
+			"X-Stainless-Runtime-Version": null,
+			"X-Stainless-Retry-Count": null,
+			"X-Stainless-Timeout": null,
+			...headers,
+		},
 	});
 }
 

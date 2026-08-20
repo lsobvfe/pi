@@ -6,6 +6,7 @@ import type { AssistantMessage, Model, SimpleStreamOptions, Tool, ToolResultMess
 
 const mockState = vi.hoisted(() => ({
 	lastParams: undefined as unknown,
+	clientOptions: undefined as Record<string, unknown> | undefined,
 	chunks: undefined as
 		| Array<null | {
 				id?: string;
@@ -22,6 +23,10 @@ const mockState = vi.hoisted(() => ({
 
 vi.mock("openai", () => {
 	class FakeOpenAI {
+		constructor(options: Record<string, unknown>) {
+			mockState.clientOptions = options;
+		}
+
 		chat = {
 			completions: {
 				create: (params: unknown) => {
@@ -106,7 +111,31 @@ async function captureSimpleParams(
 describe("openai-completions tool_choice", () => {
 	beforeEach(() => {
 		mockState.lastParams = undefined;
+		mockState.clientOptions = undefined;
 		mockState.chunks = undefined;
+	});
+
+	it("removes OpenAI SDK identity headers from compatible provider requests", async () => {
+		await streamSimple(
+			localOpenAICompletionsModel,
+			{
+				messages: [{ role: "user", content: "Hi", timestamp: Date.now() }],
+			},
+			{ apiKey: "test" },
+		).result();
+
+		const headers = mockState.clientOptions?.defaultHeaders as Record<string, unknown>;
+		expect(headers).toMatchObject({
+			"User-Agent": null,
+			"X-Stainless-Lang": null,
+			"X-Stainless-Package-Version": null,
+			"X-Stainless-OS": null,
+			"X-Stainless-Arch": null,
+			"X-Stainless-Runtime": null,
+			"X-Stainless-Runtime-Version": null,
+			"X-Stainless-Retry-Count": null,
+			"X-Stainless-Timeout": null,
+		});
 	});
 
 	it("forwards toolChoice from simple options to payload", async () => {
