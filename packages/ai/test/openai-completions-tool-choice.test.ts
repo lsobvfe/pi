@@ -115,21 +115,44 @@ describe("openai-completions tool_choice", () => {
 		mockState.chunks = undefined;
 	});
 
-	it("removes OpenAI SDK identity headers from compatible provider requests", async () => {
+	it("removes automatic runtime and SDK identity headers from compatible provider requests", async () => {
 		await streamSimple(
-			{
-				...localOpenAICompletionsModel,
-				headers: { "User-Agent": "pi-coding-agent", "X-Custom-Provider": "keep" },
-			},
+			localOpenAICompletionsModel,
 			{
 				messages: [{ role: "user", content: "Hi", timestamp: Date.now() }],
 			},
-			{ apiKey: "test" },
+			{ apiKey: "test", headers: { "User-Agent": "pi-coding-agent" } },
 		).result();
 
 		const headers = mockState.clientOptions?.defaultHeaders as Record<string, unknown>;
 		expect(headers).toMatchObject({
 			"User-Agent": null,
+			"X-Stainless-Lang": null,
+			"X-Stainless-Package-Version": null,
+			"X-Stainless-OS": null,
+			"X-Stainless-Arch": null,
+			"X-Stainless-Runtime": null,
+			"X-Stainless-Runtime-Version": null,
+			"X-Stainless-Retry-Count": null,
+			"X-Stainless-Timeout": null,
+		});
+	});
+
+	it("preserves an explicitly configured compatible provider User-Agent", async () => {
+		await streamSimple(
+			{
+				...localOpenAICompletionsModel,
+				headers: { "User-Agent": "custom-provider-agent", "X-Custom-Provider": "keep" },
+			},
+			{
+				messages: [{ role: "user", content: "Hi", timestamp: Date.now() }],
+			},
+			{ apiKey: "test", headers: { "User-Agent": "pi-coding-agent" } },
+		).result();
+
+		const headers = mockState.clientOptions?.defaultHeaders as Record<string, unknown>;
+		expect(headers).toMatchObject({
+			"User-Agent": "custom-provider-agent",
 			"X-Stainless-Lang": null,
 			"X-Stainless-Package-Version": null,
 			"X-Stainless-OS": null,

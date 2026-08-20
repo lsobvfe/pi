@@ -666,14 +666,22 @@ function createClient(
 		}
 	}
 
-	// Merge options headers last so they can override defaults
+	// Merge runtime headers last, except its Cloudflare attribution User-Agent.
+	// A configured model User-Agent is an explicit provider contract and is retained.
 	if (optionsHeaders) {
-		Object.assign(headers, optionsHeaders);
+		for (const [name, value] of Object.entries(optionsHeaders)) {
+			if (name.toLowerCase() === "user-agent" && value === "pi-coding-agent") {
+				continue;
+			}
+			headers[name] = value;
+		}
 	}
 
 	if (model.provider === "xai") {
 		forcePiUserAgent(headers);
 	}
+
+	const userAgent = takeHeader(headers, "User-Agent");
 
 	return new OpenAI({
 		apiKey,
@@ -681,10 +689,11 @@ function createClient(
 		dangerouslyAllowBrowser: true,
 		fetch,
 		// OpenAI-compatible gateways may reject the OpenAI SDK identity headers.
-		// Null values remove SDK and runtime identity defaults after header merging.
+		// Null values remove the SDK defaults; an explicitly configured model
+		// User-Agent is preserved.
 		defaultHeaders: {
 			...headers,
-			"User-Agent": null,
+			"User-Agent": userAgent ?? null,
 			"X-Stainless-Lang": null,
 			"X-Stainless-Package-Version": null,
 			"X-Stainless-OS": null,
@@ -695,6 +704,17 @@ function createClient(
 			"X-Stainless-Timeout": null,
 		},
 	});
+}
+
+function takeHeader(headers: ProviderHeaders, expectedName: string): string | null | undefined {
+	for (const name of Object.keys(headers)) {
+		if (name.toLowerCase() === expectedName.toLowerCase()) {
+			const value = headers[name];
+			delete headers[name];
+			return value;
+		}
+	}
+	return undefined;
 }
 
 function buildParams(
